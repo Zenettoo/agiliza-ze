@@ -949,7 +949,7 @@ def stabilizar(p):
     modo = "aplicar" if p.get("modo") == "aplicar" else "analisar"
     sens = p.get("sensibilidade") if p.get("sensibilidade") in ("leve", "medio", "forte") else "medio"
     cmd = [str(BASE / ".venv" / "bin" / "python"), str(BASE / "stabilizar.py"), "--modo", modo,
-           "--sensibilidade", sens, "--status", str(st)]
+           "--sensibilidade", sens, "--status", str(st)] + (["--so-selecionados"] if p.get("selecionados") else [])
     subprocess.Popen(cmd, cwd=BASE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     return {"ok": True, "msg": ("Estabilizando" if modo == "aplicar" else "Analisando") + " — acompanhe em Atividade."}
 

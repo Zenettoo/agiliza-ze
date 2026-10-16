@@ -59,6 +59,7 @@ def main():
     ap.add_argument("--modo", choices=("analisar", "aplicar"), default="analisar")
     ap.add_argument("--sensibilidade", choices=tuple(LIMITE), default="medio")
     ap.add_argument("--status")
+    ap.add_argument("--so-selecionados", action="store_true", help="só os clipes selecionados na timeline")
     args = ap.parse_args()
     st = Status(args.status)
     st.d.update(nome="Stabilizer", tipo="sync")
@@ -77,6 +78,12 @@ def main():
                 m = it.GetMediaPoolItem()
                 if m and m.GetClipProperty("File Path"):
                     itens.append((it, m))
+        if args.so_selecionados:
+            escolhidos = {c.GetUniqueId() for c in (tl.GetSelectedClips() or [])}
+            itens = [(it, m) for it, m in itens if it.GetUniqueId() in escolhidos]
+            if not itens:
+                raise RuntimeError("Nenhum clipe de vídeo selecionado na timeline. Selecione os clipes e tente de novo.")
+            st.d["nome"] = f"Stabilizer · {len(itens)} clipe(s) selecionado(s) · {tl.GetName()}"
         if not itens:
             raise RuntimeError("Não há clipes de vídeo com arquivo na timeline.")
         if args.modo == "aplicar":
