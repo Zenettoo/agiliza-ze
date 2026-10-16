@@ -141,16 +141,15 @@ def gerar_json(prompt, modelo=None):
                                           key=lambda n: float(re.match(r"gemini-(\d+(?:\.\d+)?)", n).group(1)), reverse=True)
                         if m != modelo] + [m for m in ("gemini-flash-latest", "gemini-pro-latest") if m in lista]
         d, ultimo = None, e
-        for alt in alternativas[:4]:
+        for alt in alternativas:  # todos os Flash disponíveis, do mais novo para o mais antigo
             try:
-                d = _pedido(f"{API}/models/{alt}:generateContent", corpo, timeout=900, esperas=(5, 15))
-                if "erro 404" in str(ultimo):
-                    salvar_config(modelo=alt)  # o antigo saiu do ar: fica o que funcionou
+                d = _pedido(f"{API}/models/{alt}:generateContent", corpo, timeout=900, esperas=(3,))
+                salvar_config(modelo=alt)  # fica o modelo que respondeu
                 break
             except RuntimeError as e2:
                 ultimo = e2
         if d is None:
-            raise RuntimeError(f"{ultimo} (tentei também: {', '.join(alternativas[:4]) or 'nenhum outro modelo'})")
+            raise RuntimeError(f"{ultimo} (tentei também: {', '.join(alternativas) or 'nenhum outro modelo'})")
     try:
         partes = d["candidates"][0]["content"]["parts"]
     except (KeyError, IndexError):
