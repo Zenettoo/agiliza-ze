@@ -1,0 +1,4 @@
+#!/bin/zsh
+# Do DaVinci aberto: ./de_davinci cor Orange --nome "..."  |  ./de_davinci timelines "01 X,02 Y" --nome "..."
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "$DIR/.venv/bin/python" "$DIR/de_davinci.py" "$@"

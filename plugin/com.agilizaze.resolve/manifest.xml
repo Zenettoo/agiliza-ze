@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BlackmagicDesign>
+    <Plugin>
+        <Id>com.agilizaze.resolve</Id>
+        <Name>Agiliza-Zé</Name>
+        <Version>1.0</Version>
+        <Description>Agiliza-Zé: organização de momentos, sincronia, áudio, transcrição, ganchos e roteiro dos seus projetos, com corte direto para a timeline.</Description>
+        <FilePath>main.js</FilePath>
+    </Plugin>
+</BlackmagicDesign>

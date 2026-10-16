@@ -1,0 +1,19 @@
+#!/bin/zsh
+# Limpa projetos finalizados (vão para a Lixeira; a ferramenta não é tocada).
+#   ./limpar                 lista os projetos e quanto ocupam
+#   ./limpar Projeto_X       manda esse projeto para a Lixeira
+#   ./limpar --tudo          manda todos os projetos para a Lixeira
+# Os vídeos originais nunca são tocados: as pastas só têm atalhos para eles.
+DIR="$(cd "$(dirname "$0")" && pwd)"
+P="$DIR/projetos"
+if [[ -z "$1" ]]; then
+  echo "Projetos:"; for d in "$P"/*(N/); do echo "  $(du -sh "$d" | cut -f1)\t$(basename "$d")"; done; exit 0
+fi
+LIXO=~/.Trash/AgilizaZe_limpeza_$(date +%Y-%m-%d_%H%M)
+mkdir -p "$LIXO"
+if [[ "$1" == "--tudo" ]]; then alvos=("$P"/*(N/)); else alvos=("$P/$1"); fi
+for d in $alvos; do
+  [[ -d "$d" ]] || { echo "Não achei: $(basename "$d")"; continue; }
+  mv "$d" "$LIXO/" && echo "→ Lixeira: $(basename "$d")"
+done
+echo "Para liberar o espaço de vez, esvazie a Lixeira."

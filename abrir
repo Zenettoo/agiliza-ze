@@ -1,0 +1,12 @@
+#!/bin/zsh
+# Abre a decupagem no Chrome com o servidor local (cortes e envio pro DaVinci).
+# Uso: ./abrir [Nome_do_Projeto]   (sem nome: abre o projeto mais recente)
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PORTA=8792
+if ! curl -s -o /dev/null "http://localhost:$PORTA/api/status"; then
+  nohup "$DIR/.venv/bin/python" "$DIR/servidor.py" > /dev/null 2>&1 &
+  disown
+  for i in {1..30}; do curl -s -o /dev/null "http://localhost:$PORTA/api/status" && break; sleep 0.2; done
+fi
+PROJ="${1:-$(ls -t "$DIR/projetos" | head -1)}"
+open -a "Google Chrome" "http://localhost:$PORTA/$PROJ/decupagem.html" 2>/dev/null || open "http://localhost:$PORTA/$PROJ/decupagem.html"

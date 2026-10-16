@@ -1,0 +1,12 @@
+# Ambiente e modelos (o instalador recria na outra máquina)
+.venv/
+.modelos/
+.bin/
+# Projetos e dados de clientes
+projetos/
+# Arquivos gerados
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+.claude/

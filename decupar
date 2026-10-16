@@ -1,0 +1,4 @@
+#!/bin/zsh
+# Transcreve: ./decupar "arquivo.mov" [mais arquivos] [--nome ...] [--inicio hh:mm:ss] [--fim hh:mm:ss] [--prompt "nomes"]
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec "$DIR/.venv/bin/python" "$DIR/transcrever.py" "$@"

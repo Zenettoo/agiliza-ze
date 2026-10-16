@@ -1,0 +1,7 @@
+#!/bin/zsh
+# Instala/atualiza o plugin "Agiliza-Zé" no DaVinci Resolve Studio (pede a senha do Mac uma vez).
+DIR="$(cd "$(dirname "$0")" && pwd)"
+RAIZ="/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins"
+sudo rm -rf "$RAIZ/com.decupagem.resolve" "$RAIZ/com.agilizaze.resolve" && \
+sudo cp -R "$DIR/plugin/com.agilizaze.resolve" "$RAIZ/com.agilizaze.resolve" && \
+echo "✓ Plugin instalado. Reinicie o DaVinci e abra: Workspace › Workflow Integrations › Agiliza-Zé"

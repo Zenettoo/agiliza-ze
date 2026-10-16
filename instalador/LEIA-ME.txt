@@ -1,0 +1,19 @@
+AGILIZA-ZÉ — como instalar
+
+Requisitos
+• Mac com chip Apple (M1, M2, M3, M4…) e pelo menos 5 GB livres
+• DaVinci Resolve Studio (o plugin não roda na versão gratuita)
+• Internet na instalação
+• Assinatura do Claude (claude.ai) para o Organizador de Momentos e a Análise.
+  Sincronizar, Melhorar áudio e a transcrição funcionam sem o Claude.
+
+Instalação
+1. Abra o arquivo .dmg e arraste a pasta "Agiliza-Zé" para a Mesa (ou qualquer lugar).
+2. Dentro dela, clique com o BOTÃO DIREITO em "Instalar Agiliza-Zé.command" › Abrir › Abrir.
+   (Na primeira vez o macOS avisa que o arquivo é de um desenvolvedor não identificado; é normal.)
+3. Siga o Terminal: ele pede a senha do Mac uma vez (para o plugin) e, se você quiser,
+   instala e faz o login do Claude Code.
+4. Abra o DaVinci Resolve Studio › Workspace › Workflow Integrations › Agiliza-Zé.
+
+Para atualizar: rode o instalador de novo (seus projetos são mantidos).
+Tudo fica em Documentos/Agiliza-Ze.
