@@ -16,6 +16,8 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent.parent
 PY = str(BASE / ".venv" / "bin" / "python")
 PROJETOS = BASE / "projetos"
+sys.path.insert(0, str(BASE))
+import gemini  # noqa: E402
 PORTA = 8793
 
 
@@ -43,7 +45,11 @@ def analisar(p):
     for a in arquivos:
         if not Path(a).expanduser().exists():
             raise ValueError(f"Arquivo não encontrado: {a}")
-    cmd = [PY, str(BASE / "pipeline.py"), "--modo", "arquivo", "--alvo", "|".join(str(Path(a).expanduser()) for a in arquivos),
+    motor = p.get("motor") or gemini.ler_config().get("motor") or "gemini"
+    if motor == "gemini" and not gemini.chave():
+        raise ValueError("Cole a sua chave do Gemini em Configurações (⚙) antes de analisar.")
+    gemini.salvar_config(motor=motor)
+    cmd = [PY, str(BASE / "pipeline.py"), "--motor", motor, "--modo", "arquivo", "--alvo", "|".join(str(Path(a).expanduser()) for a in arquivos),
            "--nome", nome]
     for k in ("prompt", "duracao", "obs", "tipo"):
         if p.get(k):
@@ -112,7 +118,30 @@ def escolher(_p):
     return {"ok": True, "arquivos": [l for l in r.stdout.splitlines() if l.strip()]}
 
 
-ROTAS = {"/api/escolher": escolher, "/api/analisar": analisar, "/api/cancelar": cancelar, "/api/baixar": baixar, "/api/jobs": _status,
+def config(_p):
+    c = gemini.ler_config()
+    return {"ok": True, "motor": c.get("motor") or "gemini", "modelo": gemini.modelo_escolhido(), "chave_salva": bool(gemini.chave())}
+
+
+def salvar_chave(p):
+    gemini.salvar_chave(p.get("chave", ""))
+    if not p.get("chave"):
+        return {"ok": True, "msg": "Chave apagada."}
+    lista = gemini.modelos()  # testa a chave
+    return {"ok": True, "msg": f"Chave salva e testada ({len(lista)} modelos disponíveis).", "modelos": lista}
+
+
+def modelos(_p):
+    return {"ok": True, "modelos": gemini.modelos(), "modelo": gemini.modelo_escolhido()}
+
+
+def salvar_config(p):
+    gemini.salvar_config(motor=p.get("motor"), modelo=p.get("modelo"))
+    return {"ok": True, "msg": "Configuração salva."}
+
+
+ROTAS = {"/api/config": config, "/api/salvar_chave": salvar_chave, "/api/modelos": modelos, "/api/salvar_config": salvar_config,
+         "/api/escolher": escolher, "/api/analisar": analisar, "/api/cancelar": cancelar, "/api/baixar": baixar, "/api/jobs": _status,
          "/api/resultado": abrir_resultado, "/api/downloads": downloads, "/api/abrir_pasta": abrir_pasta}
 
 

@@ -77,6 +77,8 @@ def pagina(projetos: Path) -> str:
 <div class="sub">Exporte o áudio (ou o vídeo) da timeline no seu editor e escolha aqui. Pode ser WAV, MP3, M4A, MOV ou MP4.</div>
 <div class="campos">
 <label>Nome do projeto<input id="f-nome" placeholder="Ex.: Ana e Pedro - Cerimônia"></label>
+<label>Motor da análise<select id="f-motor"><option value="gemini">Gemini (não usa créditos do Claude)</option>
+<option value="claude">Claude Code</option></select></label>
 <label>Duração do roteiro<select id="f-dur"><option>30 a 60 segundos (Reels/teaser)</option><option>1 a 2 minutos</option>
 <option selected>3 a 5 minutos (filme curto)</option><option>6 a 8 minutos</option></select></label>
 <label class="full">Arquivos de áudio ou vídeo<div class="escolher"><button class="btn sec" id="f-escolher" type="button">Escolher arquivos…</button>
@@ -85,6 +87,16 @@ def pagina(projetos: Path) -> str:
 <label class="full">Pedido extra (opcional)<textarea id="f-obs" placeholder="Ex.: foque nos votos e no discurso do pai; roteiro emocionante"></textarea></label>
 </div>
 <div class="go"><button class="btn" id="f-ir">▶ Analisar</button><span class="sub" id="f-msg"></span></div></div>
+<div class="box" id="g-box" style="margin-top:14px"><h2>⚙ Gemini</h2>
+<div class="sub">A análise pelo Gemini usa a sua chave da API do Google. Crie a chave em
+<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">aistudio.google.com/apikey</a>
+e cole abaixo. Ela fica guardada nas Chaves do macOS, não em arquivo.</div>
+<div class="campos">
+<label class="full">Chave da API<div class="escolher"><input id="g-chave" type="password" autocomplete="off" placeholder="Cole a chave aqui" style="flex:1">
+<button class="btn sec" id="g-salvar" type="button">Salvar e testar</button></div></label>
+<label>Modelo<select id="g-modelo"><option>—</option></select></label>
+<label>Status<div class="sub" id="g-status" style="text-transform:none;letter-spacing:0;font-weight:500">Verificando…</div></label>
+</div></div>
 <main class="grid" id="cartoes">{cartoes(projetos)}</main></section>
 
 <div class="dl" id="tt" hidden>
@@ -117,7 +129,7 @@ $('f-ir').onclick=async()=>{{$('f-msg').textContent='';
   if(!$('f-nome').value.trim()){{$('f-msg').textContent='Dê um nome ao projeto.';return;}}
   if(!ARQS.length){{$('f-msg').textContent='Escolha ao menos um arquivo.';return;}}
   $('f-ir').disabled=true;
-  const d=await post('/api/analisar',{{nome:$('f-nome').value,arquivos:ARQS,duracao:$('f-dur').value,prompt:$('f-prompt').value,obs:$('f-obs').value}});
+  const d=await post('/api/analisar',{{nome:$('f-nome').value,arquivos:ARQS,duracao:$('f-dur').value,prompt:$('f-prompt').value,obs:$('f-obs').value,motor:$('f-motor').value}});
   $('f-msg').textContent=d.ok?'Análise iniciada — veja em Atividade.':'⚠︎ '+d.msg;$('f-ir').disabled=false;jobs();}};
 $('cartoes').onclick=e=>{{const c=e.target.closest('.proj');if(c)post('/api/resultado',{{projeto:c.dataset.p}});}};
 async function baixar(){{const url=$('d-url').value.trim();if(!url){{$('d-msg').textContent='Cole um link.';return;}}
@@ -150,5 +162,18 @@ async function jobs(){{let d;try{{d=await post('/api/jobs');}}catch(e){{return;}
   const conc=lista.filter(j=>j.fim&&!j.erro&&!(j._arquivo||'').startsWith('_sync/')).length;
   if(conc>CONC&&CONC!==0)location.reload();CONC=conc;
   if(!$('tt').hidden)downloads();}}
-jobs();setInterval(jobs,2500);
+async function carregarModelos(atual){{try{{const d=await post('/api/modelos');
+  if(d.ok){{$('g-modelo').innerHTML=d.modelos.map(m=>`<option ${{m===(atual||d.modelo)?'selected':''}}>${{esc(m)}}</option>`).join('');}}
+  else $('g-status').textContent='⚠︎ '+d.msg;}}catch(e){{}}}}
+async function config(){{const c=await post('/api/config');$('f-motor').value=c.motor;
+  $('g-status').textContent=c.chave_salva?'Chave salva · modelo '+c.modelo:'Sem chave. Cole a sua chave para usar o Gemini.';
+  $('g-chave').placeholder=c.chave_salva?'•••••••• (salva — cole outra para trocar)':'Cole a chave aqui';
+  if(c.chave_salva)carregarModelos(c.modelo);}}
+$('g-salvar').onclick=async()=>{{const k=$('g-chave').value.trim();if(!k){{$('g-status').textContent='Cole a chave primeiro.';return;}}
+  $('g-salvar').disabled=true;$('g-status').textContent='Testando a chave…';
+  const d=await post('/api/salvar_chave',{{chave:k}});$('g-salvar').disabled=false;$('g-chave').value='';
+  $('g-status').textContent=d.ok?d.msg:'⚠︎ '+d.msg;if(d.ok)config();}};
+$('g-modelo').onchange=async()=>{{await post('/api/salvar_config',{{modelo:$('g-modelo').value}});$('g-status').textContent='Modelo: '+$('g-modelo').value;}};
+$('f-motor').onchange=()=>post('/api/salvar_config',{{motor:$('f-motor').value}});
+config();jobs();setInterval(jobs,2500);
 </script></body></html>"""

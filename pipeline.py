@@ -49,9 +49,10 @@ class Status:
 
 def regras_analise():
     """Pega da skill a seção 'Analisar' (formato do analise.json e regras), para o Claude seguir igual ao chat."""
-    if not SKILL.exists():
+    arq = next((a for a in (SKILL, BASE / "skill" / "SKILL.md") if a.exists()), None)  # cópia levada pelo instalador
+    if not arq:
         return ""
-    s = SKILL.read_text()
+    s = arq.read_text()
     m = re.search(r"### 3\. Analisar.*?(?=\n### 4\.)", s, re.S)
     return m.group(0) if m else ""
 
@@ -79,6 +80,8 @@ Se o material não for casamento (depoimento, institucional, evento), adapte cap
 
 Importante: o arquivo deve ser JSON válido (sem comentários). `texto` de ganchos e cenas copiado literalmente da transcrição.
 Não crie outros arquivos. Ao terminar, responda só "pronto"."""
+    if getattr(args, "motor", "claude") == "gemini":
+        return analisar_gemini(pasta, args, st, tipo_txt, tentativa_msg)
     cmd = [CLAUDE, "-p", prompt, "--allowedTools", "Read,Write,Edit", "--permission-mode", "acceptEdits",
            "--output-format", "text"]
     st("Analisando", "O Claude está lendo a transcrição e escrevendo ganchos e roteiro…", 70)
@@ -88,6 +91,40 @@ Não crie outros arquivos. Ao terminar, responda só "pronto"."""
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip()[-400:] or "o Claude não respondeu")
     json.loads((pasta / "analise.json").read_text())  # valida
+
+
+def analisar_gemini(pasta: Path, args, st: Status, tipo_txt="", tentativa_msg=""):
+    """Mesma análise, feita pelo Gemini: a transcrição vai no próprio pedido e a resposta é o analise.json."""
+    sys.path.insert(0, str(BASE))
+    import gemini
+    transcricao = (pasta / "transcricao.txt").read_text(encoding="utf-8")
+    prompt = f"""Você é o agente de decupagem do usuário (videomaker de casamentos/eventos). Responda em português.
+{tipo_txt}
+Abaixo está a transcrição completa (entre as marcas). Leia tudo e devolva SOMENTE o conteúdo do arquivo analise.json,
+seguindo exatamente as regras que vêm depois da transcrição.
+
+Contexto do projeto: {args.nome}.
+Nomes e pessoas: {args.prompt or 'não informados — deduza pelo conteúdo'}.
+Duração desejada do roteiro: {args.duracao or '3 a 5 minutos (filme curto)'}.
+{('Pedido extra do usuário: ' + args.obs) if args.obs else ''}
+Se o material não for casamento (depoimento, institucional, evento), adapte capítulos e ganchos ao tipo de vídeo.
+{tentativa_msg}
+
+=== TRANSCRIÇÃO (transcricao.txt) ===
+{transcricao}
+=== FIM DA TRANSCRIÇÃO ===
+
+{regras_analise()}
+
+Importante: responda só com o JSON (sem texto antes ou depois, sem comentários). `texto` de ganchos e cenas copiado
+literalmente da transcrição, sem o marcador [#id …]."""
+    st("Analisando", f"O Gemini ({gemini.modelo_escolhido()}) está lendo a transcrição e escrevendo ganchos e roteiro…", 70)
+    txt = gemini.gerar_json(prompt).strip()
+    if txt.startswith("```"):
+        txt = txt.strip("`")
+        txt = txt[txt.find("{"):]
+    dados = json.loads(txt[txt.find("{"):txt.rfind("}") + 1])
+    (pasta / "analise.json").write_text(json.dumps(dados, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def main():
@@ -101,17 +138,18 @@ def main():
     ap.add_argument("--obs", default="")
     ap.add_argument("--faixa", default="")
     ap.add_argument("--tipo", default="")
+    ap.add_argument("--motor", default="claude", choices=["claude", "gemini"], help="quem faz a análise")
     args = ap.parse_args()
 
     pasta = BASE / "projetos" / slug(args.nome)
     pedido = pasta / "_pedido.json"
     if args.reanalisar and pedido.exists():  # mantém duração/nomes/pedido extra da primeira vez, salvo se vierem novos
         antigo = json.loads(pedido.read_text())
-        for k in ("prompt", "duracao", "obs", "tipo"):
-            if not getattr(args, k):
+        for k in ("prompt", "duracao", "obs", "tipo", "motor"):
+            if not getattr(args, k) or (k == "motor" and args.motor == "claude" and antigo.get("motor")):
                 setattr(args, k, antigo.get(k, ""))
     st = Status(pasta, args.nome)
-    pedido.write_text(json.dumps({k: getattr(args, k) for k in ("modo", "alvo", "prompt", "duracao", "obs", "faixa", "tipo")},
+    pedido.write_text(json.dumps({k: getattr(args, k) for k in ("modo", "alvo", "prompt", "duracao", "obs", "faixa", "tipo", "motor")},
                                  ensure_ascii=False))
     try:
         if args.reanalisar:
