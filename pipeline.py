@@ -49,10 +49,9 @@ class Status:
 
 def regras_analise():
     """Pega da skill a seção 'Analisar' (formato do analise.json e regras), para o Claude seguir igual ao chat."""
-    arq = next((a for a in (SKILL, BASE / "skill" / "SKILL.md") if a.exists()), None)  # cópia levada pelo instalador
-    if not arq:
+    if not SKILL.exists():
         return ""
-    s = arq.read_text()
+    s = SKILL.read_text()
     m = re.search(r"### 3\. Analisar.*?(?=\n### 4\.)", s, re.S)
     return m.group(0) if m else ""
 
@@ -93,7 +92,7 @@ Não crie outros arquivos. Ao terminar, responda só "pronto"."""
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modo", default="atual", choices=["atual", "cor", "timelines", "todas", "arquivo"])
+    ap.add_argument("--modo", default="atual", choices=["atual", "cor", "timelines", "todas"])
     ap.add_argument("--reanalisar", action="store_true", help="reaproveita a transcrição: só refaz a análise e a página")
     ap.add_argument("--alvo", default="")
     ap.add_argument("--nome", required=True)
@@ -137,14 +136,8 @@ def main():
             st("Concluído", "Análise refeita! Clique para abrir.", 100, fim=time.time())
             return
         st("Transcrevendo", "Lendo o DaVinci e transcrevendo o áudio (pode levar alguns minutos)…", 5)
-        if args.modo == "arquivo":  # sem DaVinci: transcreve os arquivos que o usuário escolheu (--alvo = caminhos separados por |)
-            arquivos = [a for a in args.alvo.split("|") if a]
-            cmd = [PY, str(BASE / "transcrever.py"), *arquivos, "--nome", args.nome] + (["--prompt", args.prompt] if args.prompt else [])
-        else:
-            cmd = [PY, str(BASE / "de_davinci.py")]
-        if args.modo == "arquivo":
-            pass
-        elif args.modo == "atual":
+        cmd = [PY, str(BASE / "de_davinci.py")]
+        if args.modo == "atual":
             cmd += ["atual"]
         elif args.modo == "cor":
             cmd += ["cor", args.alvo]
@@ -152,9 +145,8 @@ def main():
             cmd += ["timelines", "--todas"]
         else:
             cmd += ["timelines", args.alvo]
-        if args.modo != "arquivo":
-            cmd += ["--nome", args.nome] + (["--prompt", args.prompt] if args.prompt else [])
-            cmd += ["--faixa", args.faixa] if args.faixa and args.modo != "cor" else []
+        cmd += ["--nome", args.nome] + (["--prompt", args.prompt] if args.prompt else [])
+        cmd += ["--faixa", args.faixa] if args.faixa and args.modo != "cor" else []
         proc = subprocess.Popen(cmd, cwd=BASE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
         log = []
         for linha in proc.stdout:
