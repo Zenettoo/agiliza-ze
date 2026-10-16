@@ -19,6 +19,8 @@ _os.environ.setdefault("LC_ALL", "pt_BR.UTF-8")
 import re
 import subprocess
 import sys
+import tempfile
+import time
 import wave
 from pathlib import Path
 
@@ -54,19 +56,57 @@ FAIXA = None  # --faixa N: usa só essa faixa de áudio (ex.: o gravador)
 def itens_audio(tl):
     fps = float(tl.GetSetting("timelineFrameRate"))
     t0 = tl.GetStartFrame()
-    out = []
+    out, sem_arquivo = [], 0
     trilhas = [i for i in range(1, tl.GetTrackCount("audio") + 1) if tl.GetIsTrackEnabled("audio", i)] or [1]
     if FAIXA and FAIXA <= tl.GetTrackCount("audio"):
         trilhas = [FAIXA]
     for it in (x for i in trilhas for x in (tl.GetItemListInTrack("audio", i) or [])):
         m = it.GetMediaPoolItem()
         if not m or not m.GetClipProperty("File Path"):
+            sem_arquivo += m is not None  # multicam ou clipe composto: o áudio só sai renderizando no DaVinci
             continue
         out.append({"ini": (it.GetStart() - t0) / fps, "fim": (it.GetEnd() - t0) / fps,
                     "src_in": it.GetSourceStartFrame(), "src_out": it.GetSourceEndFrame(),
                     "arquivo": m.GetClipProperty("File Path"), "fps": float(m.GetClipProperty("FPS") or fps),
                     "cor": it.GetClipColor(), "nome": it.GetName()})
-    return out, (tl.GetEndFrame() - t0) / fps
+    return out, (tl.GetEndFrame() - t0) / fps, sem_arquivo
+
+
+def renderizar_audio(proj, tl, saida):
+    """O próprio DaVinci renderiza o áudio da timeline (multicam/composto não têm arquivo para montar)."""
+    atual = proj.GetCurrentTimeline()
+    formato = proj.GetCurrentRenderFormatAndCodec() or {}
+    proj.SetCurrentTimeline(tl)
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            proj.SetRenderSettings({"SelectAllFrames": True, "TargetDir": tmp, "CustomName": "audio_timeline",
+                                    "ExportVideo": False, "ExportAudio": True, "AudioSampleRate": 48000})
+            job = proj.AddRenderJob()
+            if not job:
+                sys.exit(f"O DaVinci não aceitou renderizar o áudio de '{tl.GetName()}'.")
+            try:
+                proj.StartRendering([job])
+                while proj.IsRenderingInProgress():
+                    time.sleep(1)
+                status = proj.GetRenderJobStatus(job) or {}
+            finally:
+                proj.DeleteRenderJob(job)
+        finally:
+            if atual:
+                proj.SetCurrentTimeline(atual)
+            if formato.get("format") not in (None, "", "unknown"):
+                proj.SetCurrentRenderFormatAndCodec(formato["format"], formato.get("codec", ""))
+        arq = next(iter(sorted(Path(tmp).glob("audio_timeline*"))), None)
+        if status.get("JobStatus") != "Complete" or not arq:
+            sys.exit(f"Falha ao renderizar o áudio de '{tl.GetName()}' no DaVinci: {status.get('Error') or status.get('JobStatus')}")
+        subprocess.run([FFMPEG, "-hide_banner", "-loglevel", "error", "-y", "-i", str(arq), "-vn", "-ac", "1",
+                        "-ar", str(SR), "-c:a", "pcm_s16le", str(saida)], check=True)
+
+
+def tem_som(wav):
+    with wave.open(str(wav), "rb") as w:
+        a = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
+    return a.size > 0 and int(np.abs(a).max()) > 30
 
 
 def montar_audio(itens, dur, saida):
@@ -135,10 +175,21 @@ def main():
     fonte.mkdir(parents=True, exist_ok=True)
     wavs, meta = [], []
     for tl in escolhidas:
-        itens, dur = itens_audio(tl)
+        itens, dur, sem_arquivo = itens_audio(tl)
         saida = fonte / (slug(tl.GetName()) + ".wav")
-        print(f"→ Montando áudio de '{tl.GetName()}' ({len(itens)} clipes, {dur / 60:.1f} min)…", flush=True)
-        montar_audio(itens, dur, saida)
+        if sem_arquivo:
+            print(f"→ Montando áudio de '{tl.GetName()}' ({sem_arquivo} clipe(s) multicam/composto: renderizando no DaVinci, "
+                  f"{dur / 60:.1f} min)…", flush=True)
+            if FAIXA:
+                print("  (aviso: no render entram todas as faixas de áudio ativas, não só a escolhida)", flush=True)
+            renderizar_audio(proj, tl, saida)
+            itens = []  # posições valem pela timeline; não há arquivo de câmera por trás
+        else:
+            print(f"→ Montando áudio de '{tl.GetName()}' ({len(itens)} clipes, {dur / 60:.1f} min)…", flush=True)
+            montar_audio(itens, dur, saida)
+        if not tem_som(saida):
+            sys.exit(f"O áudio de '{tl.GetName()}' saiu mudo: confira se as faixas de áudio têm som e não estão "
+                     "desativadas ou sem volume no DaVinci.")
         wavs.append(str(saida))
         meta.append((tl.GetName(), itens))
     subprocess.run([PY, str(BASE / "transcrever.py"), *wavs, "--nome", args.nome] + extra, check=True)
