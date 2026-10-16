@@ -1,0 +1,26 @@
+ROTEIRIZAIA — como instalar
+
+O que faz
+• Você exporta o áudio (ou o vídeo) da timeline do seu editor — DaVinci, Premiere ou Final Cut.
+• O RoteirizaIA transcreve no seu Mac e entrega ganchos, capítulos, roteiro, falas por pessoa e legendas.
+• Também baixa trilhas por link (YouTube e outros).
+
+Requisitos
+• Mac com chip Apple (M1, M2, M3, M4…) e pelo menos 4 GB livres
+• Internet na instalação
+• Uma chave do Gemini (grátis para começar): aistudio.google.com/apikey
+  (ou o Claude Code logado, se preferir usar o Claude na análise)
+
+Instalação
+1. Abra o .dmg.
+2. Clique com o BOTÃO DIREITO em "Instalar RoteirizaIA.command" › Abrir › Abrir.
+   (Na primeira vez o macOS avisa que é de um desenvolvedor não identificado; é normal.)
+3. Siga o Terminal. No fim, o app abre sozinho no navegador.
+4. Na caixa ⚙ Gemini, cole a sua chave e clique em "Salvar e testar".
+   O app escolhe sozinho o modelo Gemini mais novo e troca de modelo se um estiver sobrecarregado.
+
+Depois é só abrir o RoteirizaIA pela Mesa (ou em ~/Applications).
+Para atualizar: rode o instalador de novo (suas análises são mantidas).
+Tudo fica em Documentos/RoteirizaIA.
+
+Baixe só trilhas licenciadas ou conteúdo seu.
