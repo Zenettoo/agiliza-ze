@@ -120,10 +120,14 @@ def main():
                     aplicados += 1
         resumo = (f"{len(tremidos)} clipe(s) tremendo (limite {limite}), {firmes} firme(s)"
                   + (f", {sem_leitura} sem leitura" if sem_leitura else ""))
-        if args.modo == "aplicar":
-            msg = f"Estabilizados {aplicados} de {len(tremidos)} clipe(s) tremidos · {firmes} firme(s) intactos"
+        escopo = f"{len(itens)} clipe(s) selecionado(s)" if args.so_selecionados else f"{len(itens)} clipe(s) da timeline"
+        if not tremidos:
+            msg = (f"Nada a estabilizar: nenhum dos {escopo} tremeu acima do limite ({args.sensibilidade}). "
+                   "Nada foi alterado. Para estabilizar mais, use Forte.")
+        elif args.modo == "aplicar":
+            msg = f"Estabilizados {aplicados} de {len(tremidos)} clipe(s) tremidos ({escopo}) · {firmes} firme(s) intactos"
         else:
-            msg = "Só análise (nada alterado): " + resumo
+            msg = f"Só análise (nada alterado): {len(tremidos)} de {escopo} tremem acima do limite · {firmes} firme(s)"
         st("Concluído", msg, 100, fim=time.time(), timeline=tl.GetName())
     except Exception as e:  # noqa: BLE001
         st("Erro", str(e), st.d["pct"], erro=str(e), fim=time.time())
