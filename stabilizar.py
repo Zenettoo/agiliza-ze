@@ -60,6 +60,7 @@ def main():
     ap.add_argument("--sensibilidade", choices=tuple(LIMITE), default="medio")
     ap.add_argument("--status")
     ap.add_argument("--so-selecionados", action="store_true", help="só os clipes selecionados na timeline")
+    ap.add_argument("--forcar", action="store_true", help="estabiliza mesmo os clipes que estão firmes")
     args = ap.parse_args()
     st = Status(args.status)
     st.d.update(nome="Stabilizer", tipo="sync")
@@ -106,9 +107,9 @@ def main():
             cfps = float(m.GetClipProperty("FPS") or fps)
             inicio = it.GetSourceStartFrame() / cfps
             valor = tremor(m.GetClipProperty("File Path"), inicio)
-            if valor is None:
+            if valor is None and not args.forcar:
                 sem_leitura += 1
-            elif valor > limite:
+            elif valor is None or valor > limite or args.forcar:
                 tremidos.append((nome, valor, it))
             else:
                 firmes += 1
