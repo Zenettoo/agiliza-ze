@@ -49,6 +49,13 @@ class Status:
         print(f"[{pct:3d}%] {etapa}: {msg}", flush=True)
 
 
+def ler_json_tolerante(arq):
+    """Lê o primeiro objeto JSON do arquivo, ignorando texto ou colchetes sobrando depois dele (o Claude às vezes deixa)."""
+    texto = Path(arq).read_text(encoding="utf-8")
+    obj, _ = json.JSONDecoder().raw_decode(texto[texto.index("{"):])
+    return obj
+
+
 def data(c):
     for k in ("Date Created", "Date Modified"):
         v = c.GetClipProperty(k) or ""
@@ -262,7 +269,7 @@ Cubra TODOS os ids de todas as câmeras. JSON válido, sem comentários. Ao term
                             errors="replace", timeout=5400)
         if rr is not None and "Not logged in" in (rr.stdout + rr.stderr):
             raise RuntimeError("O Claude Code não está logado. No Terminal: ~/.local/bin/claude auth login")
-        cl = json.loads((pasta / "classificacao.json").read_text())
+        cl = ler_json_tolerante(pasta / "classificacao.json")
 
         def chave(i):
             return i[0], int(i[1:])
