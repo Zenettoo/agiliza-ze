@@ -972,6 +972,53 @@ def predecupar(p):
     return {"ok": True, "msg": "Organizador de Momentos iniciado."}
 
 
+def escolher_video(_p):
+    """Abre a janela do macOS para escolher o vídeo que vai ganhar legendas animadas."""
+    r = subprocess.run(["osascript", "-e", 'POSIX path of (choose file of type {"public.movie"} with prompt "Escolha o vídeo para legendar")'],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return {"ok": False, "msg": "Escolha cancelada."}
+    return {"ok": True, "video": r.stdout.strip()}
+
+
+def legendas(p):
+    """Legendas animadas: transcreve o vídeo e grava as legendas palavra por palavra (legendas_animadas.py)."""
+    import time
+    video = Path(str(p.get("video") or "").strip()).expanduser()
+    if not video.is_file():
+        raise ValueError("vídeo não encontrado — use Escolher vídeo")
+    pasta = PROJETOS / "_sync"
+    pasta.mkdir(parents=True, exist_ok=True)
+    st = pasta / f"legendas_{time.strftime('%Y%m%d_%H%M%S')}.json"
+    estilo = p.get("estilo") if p.get("estilo") in ("destaque", "caixa", "karaoke", "palavra") else "destaque"
+    posicao = p.get("posicao") if p.get("posicao") in ("baixo", "meio", "alto") else "baixo"
+    cmd = [str(BASE / ".venv" / "bin" / "python"), str(BASE / "legendas_animadas.py"), "--video", str(video),
+           "--estilo", estilo, "--posicao", posicao, "--tamanho", str(float(p.get("tamanho") or 88)), "--status", str(st)]
+    for chave, opcao in (("cor", "--cor"), ("cor_ativa", "--cor-ativa"), ("cor_caixa", "--cor-caixa")):
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", str(p.get(chave) or "")):
+            cmd += [opcao, p[chave]]
+    if p.get("max_palavras"):
+        cmd += ["--max-palavras", str(int(p["max_palavras"]))]
+    if p.get("maiusculas") is False:
+        cmd += ["--minusculas"]
+    if p.get("prompt"):
+        cmd += ["--prompt", str(p["prompt"])[:300]]
+    if p.get("de_novo"):
+        cmd += ["--transcrever-de-novo"]
+    subprocess.Popen(cmd, cwd=BASE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    return {"ok": True, "msg": "Gerando as legendas — acompanhe em Atividade.", "status": "/_sync/" + st.name}
+
+
+def mostrar_legendas(p):
+    """Mostra no Finder o vídeo legendado (fica em projetos/_legendas/<vídeo>/)."""
+    pasta = (PROJETOS / "_legendas").resolve()
+    alvo = Path(str(p.get("arquivo") or "")).resolve()
+    if pasta not in alvo.parents or not alvo.is_file():
+        raise ValueError("arquivo não encontrado")
+    subprocess.run(["open", "-R", str(alvo)])
+    return {"ok": True}
+
+
 def jobs(_p):
     """Análises em andamento ou concluídas há pouco."""
     import time
@@ -996,7 +1043,7 @@ def status(_p):
         return {"ok": True, "resolve": False}
 
 
-ROTAS = {"/api/predecupar": predecupar, "/api/melhorar_audio": melhorar_audio, "/api/reanalisar": reanalisar, "/api/sincronizar": sincronizar, "/api/multicam": multicam, "/api/baixar": baixar, "/api/downloads": downloads, "/api/abrir_pasta": abrir_pasta, "/api/importar_trilha": importar_trilha, "/api/criar_timeline": criar_timeline, "/api/presets": listar_presets, "/api/stabilizar": stabilizar, "/api/hackedit": listar_hackedit, "/api/salvar_hackedit": salvar_hackedit, "/api/excluir_hackedit": excluir_hackedit, "/api/acao_hackedit": acao_hackedit, "/api/analisar_hackedit": analisar_referencia, "/api/salvar_preset": salvar_preset, "/api/excluir_preset": excluir_preset, "/api/trocar_pasta": trocar_pasta_downloads, "/api/ver_pasta": ver_pasta_downloads, "/api/info_link": info_link, "/api/forma_onda": forma_onda, "/api/bpm": bpm, "/api/tom": tom, "/api/ver_config": ver_config, "/api/salvar_config": salvar_config, "/api/atalho_mesa": atalho_mesa, "/api/atualizar_motor": atualizar_motor, "/api/apagar": apagar, "/api/analisar": analisar, "/api/cancelar": cancelar, "/api/jobs": jobs, "/api/resolve_info": resolve_info, "/api/cortar": cortar, "/api/davinci": para_davinci, "/api/montar_roteiro": montar_roteiro_davinci, "/api/localizar": localizar, "/api/status": status}
+ROTAS = {"/api/legendas": legendas, "/api/escolher_video": escolher_video, "/api/mostrar_legendas": mostrar_legendas, "/api/predecupar": predecupar,"/api/melhorar_audio": melhorar_audio, "/api/reanalisar": reanalisar, "/api/sincronizar": sincronizar, "/api/multicam": multicam, "/api/baixar": baixar, "/api/downloads": downloads, "/api/abrir_pasta": abrir_pasta, "/api/importar_trilha": importar_trilha, "/api/criar_timeline": criar_timeline, "/api/presets": listar_presets, "/api/stabilizar": stabilizar, "/api/hackedit": listar_hackedit, "/api/salvar_hackedit": salvar_hackedit, "/api/excluir_hackedit": excluir_hackedit, "/api/acao_hackedit": acao_hackedit, "/api/analisar_hackedit": analisar_referencia, "/api/salvar_preset": salvar_preset, "/api/excluir_preset": excluir_preset, "/api/trocar_pasta": trocar_pasta_downloads, "/api/ver_pasta": ver_pasta_downloads, "/api/info_link": info_link, "/api/forma_onda": forma_onda, "/api/bpm": bpm, "/api/tom": tom, "/api/ver_config": ver_config, "/api/salvar_config": salvar_config, "/api/atalho_mesa": atalho_mesa, "/api/atualizar_motor": atualizar_motor, "/api/apagar": apagar, "/api/analisar": analisar, "/api/cancelar": cancelar, "/api/jobs": jobs, "/api/resolve_info": resolve_info, "/api/cortar": cortar, "/api/davinci": para_davinci, "/api/montar_roteiro": montar_roteiro_davinci, "/api/localizar": localizar, "/api/status": status}
 
 
 class Handler(SimpleHTTPRequestHandler):
